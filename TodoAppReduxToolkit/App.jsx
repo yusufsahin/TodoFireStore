@@ -1,85 +1,113 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Button,
-  FlatList,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { useForm, Controller } from 'react-hook-form';
+import store from './src/store/store';
+import { fetchTodos, addTodo, updateTodo, deleteTodo } from './src/store/todosSlice';
 
-import React, {useEffect, useState} from 'react';
-import firestore from '@react-native-firebase/firestore';
+const TodoApp = () => {
+  const dispatch = useDispatch();
+  const todos = useSelector(state => state.todos.items);
 
-const App = () => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [status, setStatus] = useState('');
-
-  const [todos, setTodos] = useState([]);
+  const { control, handleSubmit, reset } = useForm({
+    defaultValues: {
+      name: '',
+      description: '',
+      status: ''
+    }
+  });
 
   useEffect(() => {
-    const unsubscribe = firestore()
-      .collection('ToDoCollection')
-      .onSnapshot(querySnapshot => {
-        const todos = [];
-        querySnapshot.forEach(documentSnapshot => {
-          todos.push({
-            ...documentSnapshot.data(),
-            key: documentSnapshot.id,
-          });
-        });
-        setTodos(todos)
-      });
-      return ()=>unsubscribe();
-  },[]);
+    dispatch(fetchTodos());
+  }, [dispatch]);
 
-  const addTodo = () => {
-    if (name.length > 0) {
-      firestore()
-        .collection('ToDoCollection')
-        .add({name, description, status})
-        .then(() => {
-          setName(''), setDescription('');
-          setStatus('');
-        });
-    }
+  const onSubmit = data => {
+    dispatch(addTodo(data));
+    reset();
+  };
+
+  const handleUpdateTodo = (id) => {
+    const updatedData = {
+      name: "Updated Name", // Change as per actual update logic
+      description: "Updated Description",
+      status: "Updated Status"
+    };
+    dispatch(updateTodo(id, updatedData));
+  };
+
+  const handleDeleteTodo = id => {
+    dispatch(deleteTodo(id));
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Todo App</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
+      <Controller
+        control={control}
+        name="name"
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            style={styles.input}
+            placeholder="Name"
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Description"
-        value={description}
-        onChangeText={setDescription}
+      <Controller
+        control={control}
+        name="description"
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            style={styles.input}
+            placeholder="Description"
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Status"
-        value={status}
-        onChangeText={setStatus}
+      <Controller
+        control={control}
+        name="status"
+        render={({ field: { onChange, value } }) => (
+          <TextInput
+            style={styles.input}
+            placeholder="Status"
+            value={value}
+            onChangeText={onChange}
+          />
+        )}
       />
-      <Button title="Add Todo" onPress={addTodo} />
+      <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)}>
+        <Text style={styles.buttonText}>Add Todo</Text>
+      </TouchableOpacity>
       <FlatList
         data={todos}
-        renderItem={({item}) => (
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
           <View style={styles.todoContainer}>
             <Text style={styles.todoText}>{item.name}</Text>
             <Text style={styles.todoText}>{item.description}</Text>
             <Text style={styles.todoText}>{item.status}</Text>
+            <TouchableOpacity style={styles.button} onPress={() => handleUpdateTodo(item.id)}>
+              <Text style={styles.buttonText}>Update</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={() => handleDeleteTodo(item.id)}>
+              <Text style={styles.buttonText}>Delete</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
     </View>
   );
 };
+
+const App = () => (
+  <Provider store={store}>
+    <TodoApp />
+  </Provider>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -101,6 +129,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingLeft: 8,
   },
+  button: {
+    backgroundColor: '#007BFF',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
   todoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -108,9 +147,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+    width: '100%',
   },
   todoText: {
     fontSize: 16,
+    flex: 1,
   },
 });
+
 export default App;
